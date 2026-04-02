@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nextflow-shared-pv
+spec:
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+  nfs:
+    server: 130.149.248.40
+    path: /mnt/nfs/nextflow
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nextflow-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""
+  volumeName: nextflow-shared-pv
+  resources:
+    requests:
+      storage: 100Gi

@@ -1,0 +1,16 @@
+[tool.poetry]
+package-mode = false
+version = "0.1.0"
+description = ""
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.12,<4.0"
+requests = ">=2.32.3,<3.0.0"
+dotenv = ">=0.9.9,<0.10.0"
+influxdb-client = "^1.49.0"
+pandas = "^3.0.2"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

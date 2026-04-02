@@ -1,0 +1,18 @@
+{
+  "shared_path": "/mnt/nfs/nextflow",
+  "kubernetes_nfs_path": "/mnt/nfs",
+  "ssh_user": "ubuntu",
+  "ssh_key_path": "~/.ssh/cluster_id_rsa",
+  "nodes": [
+    {
+      "ip": "130.149.248.55",
+      "username": "ubuntu",
+      "private_key_path": "~/.ssh/asok-master"
+    },
+    {
+      "ip": "130.149.248.50",
+      "username": "ubuntu",
+      "private_key_path": "~/.ssh/asok-master"
+    }
+  ]
+}
