@@ -6,6 +6,7 @@ from smart_meter_api_wrapper.smart_meter import SmartMeterAPIClient
 
 HZ = os.sysconf("SC_CLK_TCK")
 import argparse
+import logging
 import threading
 import time
 from collections import deque
@@ -47,38 +48,46 @@ class DeltaAggregator:
     def _collect(self):
         while self.running:
             interval_start = time.time()
-            # power_samples = []
+            power_samples = []
             while (time.time() - interval_start) < self.interval:
                 sample_time = time.time()
-                # meter_data = self.meter_client.get_sensor_data()
-                # sensor = next((s for s in meter_data if s['id'] == self.meter_sensor_id), None)
-                # if sensor:
-                #     power = sensor['data'].get('ActivePower')
-                #     if power is not None:
-                #         power_samples.append(power)
+                meter_data = self.meter_client.get_sensor_data()
+                sensor = next(
+                    (s for s in meter_data if s["id"] == self.meter_sensor_id), None
+                )
+                if sensor:
+                    power = sensor["data"].get("ActivePower")
+                    if power is not None:
+                        power_samples.append(power)
                 sleep_time = self.sample_rate - (time.time() - sample_time)
                 if sleep_time > 0:
                     time.sleep(sleep_time)
             interval_end = time.time()
-            # actual_interval = interval_end - interval_start
-            # avg_power = sum(power_samples) / len(power_samples) if power_samples else 0.0
-            # interval_energy = avg_power * actual_interval
+            actual_interval = interval_end - interval_start
+            avg_power = (
+                sum(power_samples) / len(power_samples) if power_samples else 0.0
+            )
+            interval_energy = avg_power * actual_interval
 
             process_data = self.monitor.get_process_list()
             self.snapshots.append((interval_end, process_data))
 
-            # if len(self.snapshots) == 2:
-            #     interval, deltas = self.get_delta()
-            #     if deltas and self.db_client:
-            #         print(
-            #             f"[{time.strftime('%X')}] delta count: {len(deltas)}, avg_power: {avg_power}, interval_energy: {interval_energy}")
-            #         self.db_client.write_deltas(
-            #             timestamp=interval_end,
-            #             interval=interval,
-            #             deltas=deltas,
-            #             # interval_energy=interval_energy,
-            #             # avg_power=avg_power
-            #         )
+            if len(self.snapshots) == 2:
+                interval, deltas = self.get_delta()
+                if deltas and self.db_client:
+                    logging.info("Metrics extracted, writing to database...")
+                    print(
+                        f"[{time.strftime('%X')}] delta count: {len(deltas)}, avg_power: {avg_power}, interval_energy: {interval_energy}"
+                    )
+                    self.db_client.write_deltas(
+                        timestamp=interval_end,
+                        interval=interval,
+                        deltas=deltas,
+                        interval_energy=interval_energy,
+                        avg_power=avg_power,
+                    )
+            else:
+                logging.info("Waiting for more data to calculate deltas...")
 
     def get_delta(self):
         if len(self.snapshots) < 2:
@@ -253,10 +262,11 @@ if __name__ == "__main__":
     )
 
     meter_client = SmartMeterAPIClient(
-        host=args.meter_host,
+        # host=args.meter_host,
+        host="powermeter01.cit.tu-berlin.de",
         ssl=args.meter_ssl,
-        username=args.meter_user,
-        password=args.meter_password,
+        username="admin",
+        password="#Ofumdad12167",
     )
 
     monitor = DeltaAggregator(

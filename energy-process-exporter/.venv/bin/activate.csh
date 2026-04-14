@@ -9,7 +9,7 @@ alias deactivate 'test $?_OLD_VIRTUAL_PATH != 0 && setenv PATH "$_OLD_VIRTUAL_PA
 # Unset irrelevant variables.
 deactivate nondestructive
 
-setenv VIRTUAL_ENV /home/niklas/Dev/DOS/LocalRepositories/Paper-EnergyAccounting/energy-process-exporter/.venv
+setenv VIRTUAL_ENV /home/niklas/Dev/DOS/Repos/Paper-EnergyAccounting/energy-process-exporter/.venv
 
 set _OLD_VIRTUAL_PATH="$PATH"
 setenv PATH "$VIRTUAL_ENV/"bin":$PATH"

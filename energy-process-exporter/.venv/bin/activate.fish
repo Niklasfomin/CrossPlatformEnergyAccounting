@@ -33,7 +33,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV /home/niklas/Dev/DOS/LocalRepositories/Paper-EnergyAccounting/energy-process-exporter/.venv
+set -gx VIRTUAL_ENV /home/niklas/Dev/DOS/Repos/Paper-EnergyAccounting/energy-process-exporter/.venv
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/"bin $PATH

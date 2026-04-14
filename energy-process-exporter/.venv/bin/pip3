@@ -1,4 +1,4 @@
-#!/home/niklas/Dev/DOS/LocalRepositories/Paper-EnergyAccounting/energy-process-exporter/.venv/bin/python3
+#!/home/niklas/Dev/DOS/Repos/Paper-EnergyAccounting/energy-process-exporter/.venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys
