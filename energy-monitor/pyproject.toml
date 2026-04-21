@@ -1,0 +1,25 @@
+[project]
+name = "sose-25-mdps"
+version = "0.1.0"
+description = ""
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+dependencies = [
+    "requests>=2.32.3,<3.0.0",
+    "dotenv>=0.9.9,<0.10.0",
+    "influxdb-client>=1.49.0,<2.0.0",
+    "matplotlib>=3.10.7,<4.0.0",
+    "cvxpy>=1.7.3,<2.0.0",
+    "pandas>=2.3.3,<3.0.0",
+    "scikit-learn>=1.7.2,<2.0.0",
+    "pyarrow>=22.0.0,<23.0.0",
+    "fastparquet>=2024.11.0,<2025.0.0",
+    "docker>=7.1.0",
+    "cgroupspy>=0.2.3",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+[tool.uv]
+package = false
