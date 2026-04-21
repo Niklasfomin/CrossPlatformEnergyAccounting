@@ -25,4 +25,9 @@ random_docker_container() {
     done
 }
 
-random_docker_container
+# Start the requested number of parallel container loops
+for ((i=0; i<NUM_PARALLEL_CONTAINERS; i++)); do
+    random_docker_container &
+done
+
+wait

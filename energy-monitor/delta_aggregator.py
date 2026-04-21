@@ -90,9 +90,10 @@ class DeltaAggregator:
 
             if len(self.snapshots) == 2:
                 interval, deltas = self.get_delta()
+                # Send deltas to DockerManager if present
+                if deltas and self.docker_manager is not None:
+                    self.docker_manager.merge_containers_with_pids_and_metrics(deltas)
                 # Push deltas to aggregation layer
-                # if deltas and DockerManager:
-
                 if deltas and self.db_client and self.meter_client is None:
                     print(f"[{time.strftime('%X')}] delta count: {len(deltas)}")
                     self.db_client.write_deltas(
@@ -355,7 +356,7 @@ if __name__ == "__main__":
 
     docker_manager = DockerManager()
     cgroups_manager = CgroupV2(
-        pid_map_callback=docker_manager.merge_containers_with_pids_and_metrics
+        pid_map_callback=docker_manager.get_latest_container_to_pid_mapping
     )
 
     monitor = DeltaAggregator(

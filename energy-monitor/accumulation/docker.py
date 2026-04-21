@@ -50,7 +50,12 @@ class DockerManager:
                 die_events.append(event)
         return die_events
 
-    def merge_containers_with_pids_and_metrics(self, pid_callback=None):
+    def get_latest_container_to_pid_mapping(self, pid_callback=None):
         if pid_callback:
-            print("Merging container events with PID updates...")
-        return
+            print("Merging container events with PID and metrics updates...")
+        return self.docker_container_to_pids_to_metrics
+
+    def merge_containers_with_pids_and_metrics(self, deltas):
+        if self.docker_container_to_pids_to_metrics:
+            print(self.docker_container_to_pids_to_metrics)
+            print("Merging container events with PID and metrics updates...")
