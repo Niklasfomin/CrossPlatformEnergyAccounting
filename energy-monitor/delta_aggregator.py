@@ -90,20 +90,9 @@ class DeltaAggregator:
 
             if len(self.snapshots) == 2:
                 interval, deltas = self.get_delta()
-                # ----------- Aggregation ----------
-                # container_name_to_pids = cgroups_manager.get_container_name_to_pids()
-                # for container_name, pids in container_name_to_pids.items():
-                #     aggregator = docker_manager.container_aggregators.get(
-                #         container_name
-                # )
-                # if aggregator:
-                #     for pid in pids:
-                #         if pid in deltas:
-                #             aggregator.set_pid_metrics(pid, deltas[pid])
-                #         aggregated = aggregator.aggregate_metrics()
-                #         aggregator.log_container_metrics()
-                #         pprint.pprint(aggregated)
-                # ----------- Aggregation End ----------
+                # Push deltas to aggregation layer
+                # if deltas and DockerManager:
+
                 if deltas and self.db_client and self.meter_client is None:
                     print(f"[{time.strftime('%X')}] delta count: {len(deltas)}")
                     self.db_client.write_deltas(
@@ -365,7 +354,9 @@ if __name__ == "__main__":
         exporter = PrometheusExporter(node="localhost", addr="127.0.0.1", port=8000)
 
     docker_manager = DockerManager()
-    cgroups_manager = CgroupV2()
+    cgroups_manager = CgroupV2(
+        pid_map_callback=docker_manager.merge_containers_with_pids_and_metrics
+    )
 
     monitor = DeltaAggregator(
         interval=args.interval,
@@ -383,7 +374,6 @@ if __name__ == "__main__":
 
     monitor.start()
     # cgroups_manager.run(monitor.running)
-
     print("Monitoring started. Press Ctrl+C to stop.")
     try:
         while True:
