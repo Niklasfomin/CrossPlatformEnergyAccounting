@@ -16,6 +16,10 @@ class CgroupV2:
         self.pid_count_per_container = {}
         self.pid_map_callback = pid_map_callback
 
+    def get_container_names_to_pids(self):
+        """Return the current container_names_to_pids mapping."""
+        return self.container_names_to_pids
+
     # def run(self, monitor_active):
     #     while monitor_active:
     #         # Continously search for new processes spawning in containers
@@ -103,7 +107,7 @@ class CgroupV2:
         for path, pids in self.path_to_pids.items():
             if container_id in path:
                 self.container_names_to_pids[container_name] = pids
-                print(f"Container | Initial PIDs: {self.container_names_to_pids}")
+                # print(f"Container | Initial PIDs: {self.container_names_to_pids}")
                 if self.pid_map_callback:
                     self.pid_map_callback(self.container_names_to_pids)
                 return self.container_names_to_pids
@@ -111,7 +115,7 @@ class CgroupV2:
     def monitor_new_pids_for_container(
         self, container_name, cgroup_path, poll_interval=1
     ):
-        """Monitor the cgroup.procs file for new PIDs and report them."""
+        """Monitor the cgroup.procs file for pids and report them."""
         procs_file = os.path.join(cgroup_path, "cgroup.procs")
         seen_pids = set()
         while True:
@@ -126,10 +130,8 @@ class CgroupV2:
                         )
                         if self.pid_map_callback:
                             self.pid_map_callback(self.container_names_to_pids)
-                        pprint.pprint(self.container_names_to_pids)
-                        print("Current container to PIDs map:")
-                    for pid in new_pids:
-                        print(f"[{container_name}] New PID detected: {pid}")
+                    # for pid in new_pids:
+                    #     print(f"[{container_name}] New PID detected: {pid}")
                 seen_pids = current_pids
             except Exception:
                 pass

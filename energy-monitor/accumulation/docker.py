@@ -1,12 +1,16 @@
+import pprint
 import threading
 
 import docker
 
+from accumulation.cgroups import CgroupV2
+
 
 class DockerManager:
-    def __init__(self):
+    def __init__(self, cgroups: CgroupV2):
         self.client = docker.from_env()
         self.docker_container_to_pids_to_metrics = {}
+        self.cgroups = cgroups
 
     def run(self, callback=None):
         start_thread = threading.Thread(
@@ -53,9 +57,32 @@ class DockerManager:
     def get_latest_container_to_pid_mapping(self, pid_callback=None):
         if pid_callback:
             print("Merging container events with PID and metrics updates...")
-        return self.docker_container_to_pids_to_metrics
+        return self.cgroups.get_container_names_to_pids()
 
     def merge_containers_with_pids_and_metrics(self, deltas):
-        if self.docker_container_to_pids_to_metrics:
-            print(self.docker_container_to_pids_to_metrics)
-            print("Merging container events with PID and metrics updates...")
+        print("DEBUG: merge_containers_with_pids_and_metrics called")
+        print(f"DEBUG: deltas argument: {deltas}")
+        container_to_pids = self.cgroups.get_container_names_to_pids()
+        print(f"DEBUG: container_to_pids from cgroups: {container_to_pids}")
+        if container_to_pids is None:
+            print("DEBUG: container_to_pids is None!")
+        elif len(container_to_pids) == 0:
+            print("DEBUG: container_to_pids is empty!")
+        else:
+            pprint.pprint(container_to_pids)
+            print(
+                f"Merging container events with PID and metrics updates... ({len(container_to_pids)} containers)"
+            )
+            # Merge the latest container to PID mapping with the deltas
+            for container_name, pids in container_to_pids.items():
+                print(
+                    f"DEBUG: Aggregating metrics for container: {container_name}, pids: {pids}"
+                )
+                for pid in pids:
+                    print(f"DEBUG: Checking if pid {pid} is in deltas...")
+                    if pid in deltas:
+                        print(
+                            f"Container: {container_name}, PID: {pid}, Metrics: {deltas[pid]}"
+                        )
+                    else:
+                        print(f"DEBUG: PID {pid} not found in deltas.")

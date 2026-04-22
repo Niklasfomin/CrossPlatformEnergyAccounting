@@ -39,8 +39,8 @@ class DeltaAggregator:
         self.monitor = MonitoringClient()
         self.interval = interval
         self.exporter = exporter
-        self.docker_manager = None
-        self.cgroups_manager = None
+        self.docker_manager = docker_manager
+        self.cgroups_manager = cgroups_manager
         self.sample_rate = sample_rate
         self.db_client = db_client
         self.meter_client = meter_client
@@ -354,10 +354,9 @@ if __name__ == "__main__":
             )
         exporter = PrometheusExporter(node="localhost", addr="127.0.0.1", port=8000)
 
-    docker_manager = DockerManager()
-    cgroups_manager = CgroupV2(
-        pid_map_callback=docker_manager.get_latest_container_to_pid_mapping
-    )
+    cgroups_manager = CgroupV2()
+    docker_manager = DockerManager(cgroups_manager)
+    # CgroupV2(pid_map_callback=docker_manager.get_latest_container_to_pid_mapping)
 
     monitor = DeltaAggregator(
         interval=args.interval,
