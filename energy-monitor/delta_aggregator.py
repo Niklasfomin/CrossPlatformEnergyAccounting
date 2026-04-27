@@ -92,7 +92,7 @@ class DeltaAggregator:
                 interval, deltas = self.get_delta()
                 # Send deltas to DockerManager if present
                 if deltas and self.docker_manager is not None:
-                    self.docker_manager.merge_containers_with_pids_and_metrics(deltas)
+                    self.docker_manager.merge_containers_with_pids_from_deltas(deltas)
                 # Push deltas to aggregation layer
                 if deltas and self.db_client and self.meter_client is None:
                     print(f"[{time.strftime('%X')}] delta count: {len(deltas)}")

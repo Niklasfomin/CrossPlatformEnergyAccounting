@@ -2,6 +2,7 @@ import pprint
 import threading
 
 import docker
+import pandas as pd
 
 from accumulation.cgroups import CgroupV2
 
@@ -10,6 +11,7 @@ class DockerManager:
     def __init__(self, cgroups: CgroupV2):
         self.client = docker.from_env()
         self.docker_container_to_pids_to_metrics = {}
+        self.docker_container_to_pids_to_metrics_summed = {}
         self.cgroups = cgroups
 
     def run(self, callback=None):
@@ -59,9 +61,7 @@ class DockerManager:
             print("Merging container events with PID and metrics updates...")
         return self.cgroups.get_container_names_to_pids()
 
-    def merge_containers_with_pids_and_metrics(self, deltas):
-        print("DEBUG: merge_containers_with_pids_and_metrics called")
-        print(f"DEBUG: deltas argument: {deltas}")
+    def merge_containers_with_pids_from_deltas(self, deltas):
         container_to_pids = self.cgroups.get_container_names_to_pids()
         print(f"DEBUG: container_to_pids from cgroups: {container_to_pids}")
         if container_to_pids is None:
@@ -70,19 +70,49 @@ class DockerManager:
             print("DEBUG: container_to_pids is empty!")
         else:
             pprint.pprint(container_to_pids)
-            print(
-                f"Merging container events with PID and metrics updates... ({len(container_to_pids)} containers)"
-            )
             # Merge the latest container to PID mapping with the deltas
             for container_name, pids in container_to_pids.items():
-                print(
-                    f"DEBUG: Aggregating metrics for container: {container_name}, pids: {pids}"
+                print(f"DEBUG: Aggregating metrics for container: {container_name}")
+                # Check if at least some PIDs are in deltas
+                missing_pids = [pid for pid in pids if pid not in deltas]
+                matching_pids = [pid for pid in pids if pid in deltas]
+                # Func call to merge metrics for matching PIDs and aggregate per container
+                self.get_container_deltas_summed(
+                    container_to_pids, matching_pids, deltas
                 )
-                for pid in pids:
-                    print(f"DEBUG: Checking if pid {pid} is in deltas...")
-                    if pid in deltas:
-                        print(
-                            f"Container: {container_name}, PID: {pid}, Metrics: {deltas[pid]}"
-                        )
-                    else:
-                        print(f"DEBUG: PID {pid} not found in deltas.")
+                self.get_container_pids_deltas(container_to_pids, matching_pids, deltas)
+                print(
+                    f"Container: {container_name}, Matching PIDs in deltas: {matching_pids}"
+                )
+
+                print(
+                    f"Container: {container_name}, Missing PIDs in deltas: {len(missing_pids)}"
+                )
+                # if matching_pids:
+                #     print(
+                #         f"Container: {container_name}, Matching PIDs in deltas: {matching_pids}"
+                #     )
+                # else:
+                #     print(
+                #         f"DEBUG: No PIDs for container {container_name} found in deltas."
+                #     )
+
+    def get_container_pids_deltas(self, container_to_pids, matching_pids, deltas):
+        for container in container_to_pids:
+            if container not in self.docker_container_to_pids_to_metrics:
+                self.docker_container_to_pids_to_metrics[container] = {}
+            for pid in matching_pids:
+                self.docker_container_to_pids_to_metrics[container][pid] = deltas[pid]
+        return self.docker_container_to_pids_to_metrics
+
+    def get_container_deltas_summed(self, container_to_pids, matching_pids, deltas):
+        # Sum metrics for all matching_pids
+        metrics_list = [deltas[pid] for pid in matching_pids if pid in deltas]
+        if metrics_list:
+            df = pd.DataFrame(metrics_list)
+            summed_metrics = df.sum(numeric_only=True).to_dict()
+        else:
+            summed_metrics = {}
+        for container in container_to_pids:
+            self.docker_container_to_pids_to_metrics_summed[container] = summed_metrics
+        return self.docker_container_to_pids_to_metrics_summed
