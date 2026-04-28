@@ -17,6 +17,9 @@ dependencies = [
     "docker>=7.1.0",
     "cgroupspy>=0.2.3",
     "tabulate>=0.10.0",
+    "fastapi>=0.136.1",
+    "pydantic>=2.13.3",
+    "uvicorn>=0.46.0",
 ]
 
 [build-system]
