@@ -6,6 +6,7 @@ from accumulation.cgroups import CgroupV2
 from accumulation.docker import DockerManager
 from database.DBClient import DBClient
 from exporter.exporter import PrometheusExporter
+from inference.api import InferenceRequest
 from monitoring.monitor_client import MonitoringClient
 from smart_meter_api_wrapper.smart_meter import SmartMeterAPIClient
 
@@ -16,6 +17,7 @@ import time
 from collections import deque
 from math import isfinite
 
+import uvicorn
 from cgroupspy import trees
 
 INFLUX_URL = "http://localhost:8086"
@@ -33,6 +35,7 @@ class DeltaAggregator:
         exporter=None,
         docker_manager=None,
         cgroups_manager=None,
+        online_estimator=None,
         meter_client=None,
         meter_sensor_id="L1",
     ):
@@ -41,6 +44,7 @@ class DeltaAggregator:
         self.exporter = exporter
         self.docker_manager = docker_manager
         self.cgroups_manager = cgroups_manager
+        self.online_estimator = online_estimator
         self.sample_rate = sample_rate
         self.db_client = db_client
         self.meter_client = meter_client
@@ -48,14 +52,37 @@ class DeltaAggregator:
         self.snapshots = deque(maxlen=2)  # Store only last two process metric snapshots
         self.running = False
         self.thread = threading.Thread(target=self._collect, daemon=True)
+        self.api_server = None
+        self.api_thread = None
 
     def start(self):
+        if self.online_estimator is not None:
+            app = self.online_estimator.create_app()
+            config = uvicorn.Config(
+                app,
+                host="127.0.0.1",
+                port=8001,
+                log_level="info",
+            )
+            self.api_server = uvicorn.Server(config)
+            self.api_thread = threading.Thread(
+                target=self.api_server.run,
+                daemon=True,
+            )
+            self.api_thread.start()
+
         self.running = True
         self.thread.start()
 
     def stop(self):
         self.running = False
         self.thread.join()
+
+        if self.api_server is not None:
+            self.api_server.should_exit = True
+
+        if self.api_thread is not None:
+            self.api_thread.join()
 
     def _collect(self):
         while self.running:
@@ -93,6 +120,7 @@ class DeltaAggregator:
                 # Send deltas to DockerManager if present
                 if deltas and self.docker_manager is not None:
                     self.docker_manager.merge_containers_with_pids_from_deltas(deltas)
+
                 # Push deltas to aggregation layer
                 if deltas and self.db_client and self.meter_client is None:
                     print(f"[{time.strftime('%X')}] delta count: {len(deltas)}")
@@ -315,6 +343,13 @@ if __name__ == "__main__":
         help="Sensor id to read from smart meter (default: L1)",
     )
 
+    parser.add_argument(
+        "--online-energy-estimation",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Enable online energy estimation (disabled by default)",
+    )
+
     args = parser.parse_args()
 
     sample_rate = args.sample_rate if args.sample_rate is not None else args.interval
@@ -358,6 +393,11 @@ if __name__ == "__main__":
     docker_manager = DockerManager(cgroups_manager)
     # CgroupV2(pid_map_callback=docker_manager.get_latest_container_to_pid_mapping)
 
+    online_estimator = None
+    if args.online_energy_estimation:
+        print("Online energy estimation enabled.")
+        online_estimator = InferenceRequest()
+
     monitor = DeltaAggregator(
         interval=args.interval,
         sample_rate=sample_rate,
@@ -367,6 +407,7 @@ if __name__ == "__main__":
         exporter=exporter,
         cgroups_manager=cgroups_manager,
         docker_manager=docker_manager,
+        online_estimator=online_estimator,
     )
 
     # Pass the callback to DockerManager so cgroups_manager receives container events
