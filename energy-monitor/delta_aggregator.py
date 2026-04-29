@@ -4,6 +4,7 @@ import re
 
 from accumulation.cgroups import CgroupV2
 from accumulation.docker import DockerManager
+from accumulation.k8s import K8sManager
 from database.DBClient import DBClient
 from exporter.exporter import PrometheusExporter
 from inference.api import InferenceRequest
@@ -36,6 +37,7 @@ class DeltaAggregator:
         docker_manager=None,
         cgroups_manager=None,
         online_estimator=None,
+        k8s_manager=None,
         meter_client=None,
         meter_sensor_id="L1",
     ):
@@ -45,6 +47,7 @@ class DeltaAggregator:
         self.docker_manager = docker_manager
         self.cgroups_manager = cgroups_manager
         self.online_estimator = online_estimator
+        self.k8s_manager = k8s_manager
         self.sample_rate = sample_rate
         self.db_client = db_client
         self.meter_client = meter_client
@@ -120,6 +123,8 @@ class DeltaAggregator:
                 # Send deltas to DockerManager if present
                 if deltas and self.docker_manager is not None:
                     self.docker_manager.merge_containers_with_pids_from_deltas(deltas)
+                # if deltas and self.k8s_manager is not None:
+                #     self.k8s_manager.merge_pod_containers_with_pids_from_deltas(deltas)
 
                 # Push deltas to aggregation layer
                 if deltas and self.db_client and self.meter_client is None:
@@ -350,6 +355,24 @@ if __name__ == "__main__":
         help="Enable online energy estimation (disabled by default)",
     )
 
+    parser.add_argument(
+        "--docker-integration",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Enable metric aggregation for Docker environments (disabled by default)",
+    )
+
+    parser.add_argument(
+        "--kubernetes-integration",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Enable metric aggregation for Kubernetes environments (disabled by default)",
+    )
+
+    parser.add_argument(
+        "--kubeconfig",
+        help="Path to kubeconfig file",
+    )
     args = parser.parse_args()
 
     sample_rate = args.sample_rate if args.sample_rate is not None else args.interval
@@ -381,6 +404,9 @@ if __name__ == "__main__":
     else:
         print("Smart meter integration disabled")
 
+    # Cgroups Manager is always initialized
+    cgroups_manager = CgroupV2()
+
     exporter = None
     if args.use_prometheus_exporter:
         if not args.exporter_addr or not args.exporter_port:
@@ -389,14 +415,30 @@ if __name__ == "__main__":
             )
         exporter = PrometheusExporter(node="localhost", addr="127.0.0.1", port=8000)
 
-    cgroups_manager = CgroupV2()
-    docker_manager = DockerManager(cgroups_manager)
+    docker_manager = None
+    if args.docker_integration:
+        print("Docker integration enabled.")
+        docker_manager = DockerManager(cgroups_manager)
+        # Pass the callback to DockerManager so cgroups_manager receives container events
+        docker_manager.run(callback=cgroups_manager.handle_container_event)
+
     # CgroupV2(pid_map_callback=docker_manager.get_latest_container_to_pid_mapping)
 
     online_estimator = None
     if args.online_energy_estimation:
         print("Online energy estimation enabled.")
         online_estimator = InferenceRequest()
+
+    k8s_manager = None
+    if args.kubernetes_integration:
+        if not args.kubeconfig:
+            raise ValueError(
+                "--kubeconfig is required when --kubernetes-integration is enabled"
+            )
+        print("Kubernetes integration enabled.")
+        k8s_manager = K8sManager(args.kubeconfig, cgroups_manager)
+        # k8s_manager.run(callback=cgroups_manager.handle_pod_container_event)
+        k8s_manager.run()
 
     monitor = DeltaAggregator(
         interval=args.interval,
@@ -408,10 +450,8 @@ if __name__ == "__main__":
         cgroups_manager=cgroups_manager,
         docker_manager=docker_manager,
         online_estimator=online_estimator,
+        k8s_manager=k8s_manager,
     )
-
-    # Pass the callback to DockerManager so cgroups_manager receives container events
-    docker_manager.run(callback=cgroups_manager.handle_container_event)
 
     monitor.start()
     # cgroups_manager.run(monitor.running)
